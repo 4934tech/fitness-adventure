@@ -1,35 +1,30 @@
-from fastapi import FastAPI, HTTPException, Body, Request, Depends
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel, EmailStr, Field
 from starlette.middleware.cors import CORSMiddleware
-from datetime import datetime, timedelta
-import psycopg2
-import uuid
-import os
-from dotenv import load_dotenv
+from datetime import datetime, timedelta, timezone
 from passlib.hash import bcrypt
+from dotenv import load_dotenv
+from typing import Optional
+from pymongo import MongoClient, ASCENDING
+from pymongo.errors import DuplicateKeyError
+import os
+import uuid
 
 load_dotenv()
 
-DB_HOST = os.getenv("DB_HOST")
-DB_PORT = os.getenv("DB_PORT")
+MONGO_URI = os.getenv("MONGO_URI")
 DB_NAME = os.getenv("DB_NAME")
-DB_USER = os.getenv("DB_USER")
-DB_PASSWORD = os.getenv("DB_PASSWORD")
+TOKEN_EXPIRY_DAYS = int(os.getenv("TOKEN_EXPIRY_DAYS"))
 
-TOKEN_EXPIRY_DAYS = int(os.getenv("TOKEN_EXPIRY_DAYS", "2"))
+client = MongoClient(MONGO_URI)
+db = client[DB_NAME]
+users = db["users"]
 
-def get_connection():
-    return psycopg2.connect(
-        host=DB_HOST,
-        port=DB_PORT,
-        dbname=DB_NAME,
-        user=DB_USER,
-        password=DB_PASSWORD,
-    )
+users.create_index([("email", ASCENDING)], unique=True, name="uniq_email")
+users.create_index([("token", ASCENDING)], name="idx_token")
 
 app = FastAPI()
 
-# CORS
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -37,29 +32,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
-def init_db():
-    conn = get_connection()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    CREATE TABLE IF NOT EXISTS users (
-                        id SERIAL PRIMARY KEY,
-                        name TEXT NOT NULL,
-                        email TEXT NOT NULL UNIQUE,
-                        password_hash TEXT NOT NULL,
-                        token TEXT UNIQUE,
-                        token_expiry TIMESTAMP,
-                        created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-                        updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-                    )
-                """)
-                cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_token ON users(token)")
-    finally:
-        conn.close()
-
-init_db()
 
 class SignupRequest(BaseModel):
     name: str = Field(min_length=1, max_length=200)
@@ -71,143 +43,121 @@ class LoginRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
 
 class AuthResponse(BaseModel):
-    id: int
+    id: str
     name: str
     email: EmailStr
     token: str
     token_expiry: datetime
 
+def now_utc() -> datetime:
+    return datetime.now(timezone.utc)
 
 def generate_token() -> str:
     return str(uuid.uuid4())
 
 def get_expiry_time() -> datetime:
-    return datetime.utcnow() + timedelta(days=TOKEN_EXPIRY_DAYS)
+    return now_utc() + timedelta(days=TOKEN_EXPIRY_DAYS)
 
-def is_token_expired(expiry_time: datetime | None) -> bool:
+def is_token_expired(expiry_time: Optional[datetime]) -> bool:
     if expiry_time is None:
         return True
-    return datetime.utcnow() > expiry_time
+    return now_utc() > expiry_time
 
-def get_user_by_email(cursor, email: str):
-    cursor.execute("""
-        SELECT id, name, email, password_hash, token, token_expiry
-        FROM users
-        WHERE email = %s
-    """, (email,))
-    return cursor.fetchone()
+def doc_to_auth_response(doc) -> AuthResponse:
+    return AuthResponse(
+        id=str(doc["_id"]),
+        name=doc["name"],
+        email=doc["email"],
+        token=doc["token"],
+        token_expiry=doc["token_expiry"],
+    )
 
-def get_user_by_token(cursor, token: str):
-    cursor.execute("""
-        SELECT id, name, email, token_expiry
-        FROM users
-        WHERE token = %s
-    """, (token,))
-    return cursor.fetchone()
+def get_user_by_email(email: str):
+    return users.find_one({"email": email})
 
-# Routes
+def get_user_by_token(token: str):
+    return users.find_one({"token": token}, {"name": 1, "email": 1, "token_expiry": 1})
 
 @app.post("/signup", response_model=AuthResponse)
 def signup(payload: SignupRequest):
-    conn = get_connection()
+    password_hash = bcrypt.hash(payload.password)
+    token = generate_token()
+    token_expiry = get_expiry_time()
+
+    doc = {
+        "name": payload.name,
+        "email": payload.email,
+        "password_hash": password_hash,
+        "token": token,
+        "token_expiry": token_expiry,
+        "created_at": now_utc(),
+        "updated_at": now_utc(),
+    }
+
     try:
-        with conn:
-            with conn.cursor() as cursor:
-                existing = get_user_by_email(cursor, payload.email)
-                if existing:
-                    raise HTTPException(status_code=409, detail="Email already in use")
-
-                password_hash = bcrypt.hash(payload.password)
-                token = generate_token()
-                token_expiry = get_expiry_time()
-
-                cursor.execute("""
-                    INSERT INTO users (name, email, password_hash, token, token_expiry)
-                    VALUES (%s, %s, %s, %s, %s)
-                    RETURNING id, name, email, token, token_expiry
-                """, (payload.name, payload.email, password_hash, token, token_expiry))
-                row = cursor.fetchone()
-
-                return AuthResponse(
-                    id=row[0],
-                    name=row[1],
-                    email=row[2],
-                    token=row[3],
-                    token_expiry=row[4],
-                )
-    finally:
-        conn.close()
+        result = users.insert_one(doc)
+        inserted = users.find_one({"_id": result.inserted_id}, {"password_hash": 0})
+        return doc_to_auth_response(inserted)
+    except DuplicateKeyError:
+        raise HTTPException(status_code=409, detail="Email already in use")
 
 @app.post("/login", response_model=AuthResponse)
 def login(payload: LoginRequest):
-    conn = get_connection()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                row = get_user_by_email(cursor, payload.email)
-                if not row:
-                    raise HTTPException(status_code=401, detail="Invalid credentials")
+    doc = get_user_by_email(payload.email)
+    if not doc:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                user_id, name, email, password_hash, _, _ = row
+    if not bcrypt.verify(payload.password, doc["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
-                if not bcrypt.verify(payload.password, password_hash):
-                    raise HTTPException(status_code=401, detail="Invalid credentials")
+    token = generate_token()
+    token_expiry = get_expiry_time()
 
-                token = generate_token()
-                token_expiry = get_expiry_time()
-                cursor.execute("""
-                    UPDATE users
-                    SET token = %s, token_expiry = %s, updated_at = NOW()
-                    WHERE id = %s
-                """, (token, token_expiry, user_id))
+    users.update_one(
+        {"_id": doc["_id"]},
+        {
+            "$set": {
+                "token": token,
+                "token_expiry": token_expiry,
+                "updated_at": now_utc(),
+            }
+        },
+    )
 
-                return AuthResponse(
-                    id=user_id,
-                    name=name,
-                    email=email,
-                    token=token,
-                    token_expiry=token_expiry,
-                )
-    finally:
-        conn.close()
+    updated = users.find_one({"_id": doc["_id"]}, {"password_hash": 0})
+    return doc_to_auth_response(updated)
 
 @app.post("/logout")
 def logout(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
-    token = auth_header.split(" ", 1)[1].strip()
 
-    conn = get_connection()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                cursor.execute("UPDATE users SET token = NULL, token_expiry = NULL, updated_at = NOW() WHERE token = %s", (token,))
-                if cursor.rowcount == 0:
-                    raise HTTPException(status_code=401, detail="Invalid token")
-        return {"message": "Logged out"}
-    finally:
-        conn.close()
+    token = auth_header.split(" ", 1)[1].strip()
+    res = users.update_one(
+        {"token": token},
+        {"$set": {"token": None, "token_expiry": None, "updated_at": now_utc()}},
+    )
+    if res.modified_count == 0:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+    return {"message": "Logged out"}
 
 @app.get("/protected")
 def protected_route(request: Request):
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.lower().startswith("bearer "):
         raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+
     token = auth_header.split(" ", 1)[1].strip()
+    doc = get_user_by_token(token)
+    if not doc:
+        raise HTTPException(status_code=401, detail="Invalid token")
 
-    conn = get_connection()
-    try:
-        with conn:
-            with conn.cursor() as cursor:
-                row = get_user_by_token(cursor, token)
-                if not row:
-                    raise HTTPException(status_code=401, detail="Invalid token")
+    if is_token_expired(doc.get("token_expiry")):
+        raise HTTPException(status_code=401, detail="Token expired")
 
-                user_id, name, email, expiry = row
-                if is_token_expired(expiry):
-                    raise HTTPException(status_code=401, detail="Token expired")
-
-                return {"message": f"Hello, {name}. Your token is valid.", "user": {"id": user_id, "name": name, "email": email}}
-    finally:
-        conn.close()
+    return {
+        "message": f"Hello, {doc['name']}. Your token is valid.",
+        "user": {"id": str(doc["_id"]), "name": doc["name"], "email": doc["email"]},
+    }
