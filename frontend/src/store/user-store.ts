@@ -44,7 +44,6 @@ export interface AppState {
 }
 
 function calculateLevelFromXp(totalXp: number): number {
-  // Simple level curve: level up every 1000 XP
   return Math.max(1, Math.floor(totalXp / 1000) + 1)
 }
 

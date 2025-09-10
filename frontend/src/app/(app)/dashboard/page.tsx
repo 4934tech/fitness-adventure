@@ -5,6 +5,7 @@ import { Progress } from '@/components/ui/progress'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { useAppStore } from '@/store/user-store'
 import { Bar, BarChart, ResponsiveContainer, XAxis, YAxis } from 'recharts'
+import { useRequireAuth } from '@/lib/auth'
 
 const mockWeeklyXp = [
   { day: 'Mon', xp: 120 },
@@ -18,6 +19,9 @@ const mockWeeklyXp = [
 
 export default function DashboardPage() {
   const { profile, gamification } = useAppStore()
+  const { isAuthed } = useRequireAuth()
+
+  if (!isAuthed) return null
 
   return (
     <div className="space-y-6">
@@ -29,7 +33,6 @@ export default function DashboardPage() {
           Level {gamification.level} • {gamification.xp} XP • {gamification.coins} Coins • Streak {gamification.streakDays}d
         </p>
       </div>
-
       <Tabs defaultValue="overview">
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -88,5 +91,3 @@ export default function DashboardPage() {
     </div>
   )
 }
-
-
