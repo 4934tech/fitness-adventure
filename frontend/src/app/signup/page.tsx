@@ -40,8 +40,10 @@ export default function SignUpPage() {
       if (res.status === 'pending_verification') {
         setPendingVerification(true)
       }
-    } catch (err: any) {
-      setError(err.message || 'Something went wrong')
+    } catch (e) {
+      if(e instanceof Error){
+        setError(e.message || 'Something went wrong')
+      }
     } finally {
       setLoading(false)
     }

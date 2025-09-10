@@ -33,8 +33,10 @@ export default function SignInPage() {
 
       const next = searchParams.get('next') || '/dashboard'
       window.location.href = next
-    } catch (err: any) {
-      setError(err.message || 'Invalid credentials')
+    } catch (e) {
+      if(e instanceof Error){
+        setError(e.message || 'Invalid credentials')
+      }
     } finally {
       setLoading(false)
     }

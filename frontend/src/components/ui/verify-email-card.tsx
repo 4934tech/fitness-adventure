@@ -25,8 +25,10 @@ export default function VerifyEmailCard({ email }: { email: string }) {
       } else {
         setInfo('Already verified.')
       }
-    } catch (err: any) {
-      setError(err.message || 'Invalid code')
+    } catch (e) {
+      if(e instanceof Error){
+        setError(e.message || 'Invalid code')
+      }
     } finally {
       setLoading(false)
     }
@@ -39,8 +41,10 @@ export default function VerifyEmailCard({ email }: { email: string }) {
       setLoading(true)
       await resendVerification(email)
       setInfo('Verification code sent')
-    } catch (err: any) {
-      setError(err.message || 'Could not resend yet')
+    } catch (e) {
+      if(e instanceof Error){
+        setError(e.message || 'Could not resend yet')
+      }
     } finally {
       setLoading(false)
     }

@@ -86,8 +86,8 @@ export function useApi() {
   async function authedGet<T>(path: string, init?: RequestInit): Promise<T> {
     try {
       return await getJSON<T>(path, withAuthHeaders(init))
-    } catch (e: any) {
-      if (/401|403/i.test(e.message)) clearAuth()
+    } catch (e: unknown) {
+      if (e instanceof Error && /401|403/i.test(e.message)) clearAuth()
       throw e
     }
   }
@@ -95,11 +95,14 @@ export function useApi() {
   async function authedPost<T>(path: string, body?: unknown, init?: RequestInit): Promise<T> {
     try {
       return await postJSON<T>(path, body, withAuthHeaders(init))
-    } catch (e: any) {
-      if (/401|403/i.test(e.message)) clearAuth()
+    } catch (e: unknown) {
+      if (e instanceof Error && /401|403/i.test(e.message)) {
+        clearAuth()
+      }
       throw e
     }
   }
+
 
   async function login(email: string, password: string) {
     const data = await loginDirect(email, password)
