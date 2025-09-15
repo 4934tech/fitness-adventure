@@ -10,7 +10,7 @@ export type AuthResponse = {
 	token_expiry: string;
 };
 
-export const API_BASE = process.env.API_URL || "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function postJSON<T>(
 	path: string,
