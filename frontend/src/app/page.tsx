@@ -2,7 +2,6 @@ import { LandingHero } from "@/components/landing/hero";
 import { LandingCta } from "@/components/landing/cta";
 import { LandingFooter } from "@/components/landing/footer";
 import { AppNav } from "@/components/app/nav";
-import Link from "next/link";
 import Image from "next/image";
 import LiquidEther from "@/components/landing/liquidether";
 
