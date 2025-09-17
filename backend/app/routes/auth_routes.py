@@ -1,5 +1,5 @@
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, status
 from pymongo.errors import DuplicateKeyError
 from ..config import get_settings
 from ..email.email_manager import send_email_sync, email_verification_html
@@ -111,7 +111,10 @@ def signup(payload: SignupRequest, background_tasks: BackgroundTasks):
             "updated_at": now,
         })
     except DuplicateKeyError:
-        raise HTTPException(status_code=409, detail="Email already in use")
+        raise HTTPException(
+            status_code=409,
+            detail="This email address is already registered!"
+        )
 
     code = generate_code()
     email_verifications_col().insert_one({
