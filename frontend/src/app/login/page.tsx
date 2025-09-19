@@ -3,9 +3,17 @@
 import { Suspense, useState, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 import Link from "next/link";
 import { useApi } from "@/lib/api";
-import { PasswordInput } from "@/components/ui/password-input";
 import { useSearchParams, useRouter } from "next/navigation";
 
 export default function LoginPage() {
@@ -55,15 +63,15 @@ function LoginForm() {
 	}
 
 	return (
-		<div className="mx-auto max-w-md px-4 py-12">
-			<h1 className="text-2xl font-semibold">Sign in</h1>
-			<p className="text-sm text-muted-foreground">
-				Enter your credentials to sign in.
-			</p>
-
-			<form onSubmit={onSubmit} className="mt-6 space-y-3">
-				{!!error && <p className="text-sm text-red-600">{error}</p>}
-
+		<div className="mx-auto max-w-md px-4 py-12 flex flex-col gap-6">
+			<Card>
+				<CardHeader>
+					<CardTitle>Sign in</CardTitle>
+					<CardDescription>Enter your credentials to sign in.</CardDescription>
+				</CardHeader>
+				<CardContent>
+			<form onSubmit={onSubmit}>
+    <div className="flex flex-col gap-6">
 				<div>
 					<label className="text-sm">Email</label>
 					<Input
@@ -84,18 +92,22 @@ function LoginForm() {
 						placeholder="Enter your password"
 					/>
 				</div>
-
-				<Button type="submit" disabled={loading} className="w-full">
+      </div>
+				<Button type="submit" disabled={loading} className="w-full mt-4">
 					{loading ? "Signing in…" : "Sign in"}
 				</Button>
 			</form>
+      {!!error && <p className="text-sm text-red-600 mt-2 text-center">{error}</p>}
 
 			<p className="mt-6 text-center text-sm text-muted-foreground">
-				Do not have an account?{" "}
+				Make a new account?{" "}
 				<Link href="/signup" className="text-primary hover:underline">
 					Sign up
 				</Link>
 			</p>
+
+      </CardContent>
+      </Card>
 		</div>
 	);
 }
