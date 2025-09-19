@@ -8,9 +8,11 @@ export type AuthResponse = {
 	email: string;
 	token: string;
 	token_expiry: string;
+	requires_onboarding: boolean; // new
 };
 
-export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE =
+	process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 async function postJSON<T>(
 	path: string,
@@ -77,7 +79,6 @@ export function resendVerification(email: string) {
 }
 
 export function loginDirect(email: string, password: string) {
-	// TODO: Should probably be deleted
 	return postJSON<AuthResponse>("/auth/login", { email, password });
 }
 
