@@ -7,22 +7,6 @@ import { Button } from "@/components/ui/button";
 export function LandingHero() {
 	return (
 		<section className="relative overflow-hidden">
-			<div className="pointer-events-none absolute inset-0 -z-10">
-				<div className="fa-aurora">
-					<span className="blob-1" />
-					<span className="blob-2" />
-					<span className="blob-3" />
-				</div>
-				<div
-					className="absolute inset-0 opacity-40 dark:opacity-30"
-					style={{
-						backgroundImage:
-							"linear-gradient(to right, rgba(0,0,0,.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,.06) 1px, transparent 1px)",
-						backgroundSize: "40px 40px",
-					}}
-				/>
-			</div>
-
 			<div className="mx-auto max-w-6xl px-4 py-20 sm:py-28 text-center">
 				<motion.div
 					initial={{ opacity: 0, y: 10 }}
@@ -42,8 +26,9 @@ export function LandingHero() {
 					viewport={{ once: true }}
 					className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl fa-gradient-text"
 				>
-					Level up your health with Fitness Adventure
+					Begin your fitness adventure
 				</motion.h1>
+
 
 				<motion.p
 					initial={{ opacity: 0, y: 10 }}
