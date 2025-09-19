@@ -66,8 +66,8 @@ function LoginForm() {
 		<div className="mx-auto max-w-md px-4 py-12 flex flex-col gap-6">
 			<Card>
 				<CardHeader>
-					<CardTitle>Sign in</CardTitle>
-					<CardDescription>Enter your credentials to sign in.</CardDescription>
+					<CardTitle>Login</CardTitle>
+					<CardDescription>Enter your credentials to log in.</CardDescription>
 				</CardHeader>
 				<CardContent>
 			<form onSubmit={onSubmit}>
@@ -94,7 +94,7 @@ function LoginForm() {
 				</div>
       </div>
 				<Button type="submit" disabled={loading} className="w-full mt-4">
-					{loading ? "Signing in…" : "Sign in"}
+					{loading ? "Logging in…" : "Login"}
 				</Button>
 			</form>
       {!!error && <p className="text-sm text-red-600 mt-2 text-center">{error}</p>}

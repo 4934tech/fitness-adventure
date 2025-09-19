@@ -81,8 +81,6 @@ export function LandingHero() {
 					))}
 				</motion.div>
 			</div>
-
-			{/* Removed marquee for a cleaner, smoother hero as requested */}
 		</section>
 	);
 }

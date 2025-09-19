@@ -21,7 +21,7 @@ export default function VerifyEmailCard({ email }: { email: string }) {
 			const res = await verifyEmail(email, code);
 			if (res.status === "verified") {
 				setVerified(true);
-				setInfo("Email verified. You can sign in now.");
+				setInfo("Email verified. You can now log in.");
 			} else {
 				setInfo("Already verified.");
 			}
