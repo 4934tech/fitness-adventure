@@ -24,6 +24,7 @@ interface StepperProps extends HTMLAttributes<HTMLDivElement> {
 	backButtonText?: string;
 	nextButtonText?: string;
 	disableStepIndicators?: boolean;
+	validateStep?: (step: number) => boolean;
 	renderStepIndicator?: (props: {
 		step: number;
 		currentStep: number;
@@ -45,6 +46,7 @@ export default function Stepper({
 	backButtonText = "Back",
 	nextButtonText = "Continue",
 	disableStepIndicators = false,
+	validateStep = () => true,
 	renderStepIndicator,
 	...rest
 }: StepperProps) {
@@ -72,7 +74,7 @@ export default function Stepper({
 	};
 
 	const handleNext = () => {
-		if (!isLastStep) {
+		if (!isLastStep && validateStep(currentStep)) {
 			setDirection(1);
 			updateStep(currentStep + 1);
 		}
@@ -105,8 +107,11 @@ export default function Stepper({
 										step: stepNumber,
 										currentStep,
 										onStepClick: (clicked) => {
-											setDirection(clicked > currentStep ? 1 : -1);
-											updateStep(clicked);
+											// Only allow clicking if going back or if all previous steps are valid
+											if (clicked <= currentStep || (clicked > currentStep && validateStep(currentStep))) {
+												setDirection(clicked > currentStep ? 1 : -1);
+												updateStep(clicked);
+											}
 										},
 									})
 								) : (
@@ -115,8 +120,11 @@ export default function Stepper({
 										disableStepIndicators={disableStepIndicators}
 										currentStep={currentStep}
 										onClickStep={(clicked) => {
-											setDirection(clicked > currentStep ? 1 : -1);
-											updateStep(clicked);
+											// Only allow clicking if going back or if all previous steps are valid
+											if (clicked <= currentStep || (clicked > currentStep && validateStep(currentStep))) {
+												setDirection(clicked > currentStep ? 1 : -1);
+												updateStep(clicked);
+											}
 										}}
 									/>
 								)}

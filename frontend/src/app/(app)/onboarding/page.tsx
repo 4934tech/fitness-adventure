@@ -4,6 +4,7 @@ import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
+import { useState } from "react";
 
 import {
 	Form,
@@ -14,7 +15,6 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
 import {
 	Select,
 	SelectContent,
@@ -22,7 +22,9 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select";
+import { PasswordInput } from "@/components/ui/password-input";
 import Stepper, { Step } from "@/components/ui/stepper";
+import { useApi } from "@/lib/api";
 
 type FitnessGoal =
 	| "muscle"
@@ -34,6 +36,9 @@ type ExperienceLevel = "beginner" | "intermediate" | "advanced";
 type EquipmentAccess = "none" | "limited" | "full_gym";
 
 const onboardingSchema = z.object({
+	email: z.string().email("Please enter a valid email"),
+	password: z.string().min(8, "Password must be at least 8 characters").max(64, "Password must be less than 64 characters"),
+	confirmPassword: z.string(),
 	name: z.string().min(1, "Please enter your name"),
 	age: z.coerce.number().int().min(13).max(100),
 	heightCm: z.coerce.number().min(100).max(250),
@@ -49,12 +54,20 @@ const onboardingSchema = z.object({
 	equipment: z.enum(["none", "limited", "full_gym"]),
 	preferredDaysPerWeek: z.coerce.number().int().min(1).max(7),
 	anythingElse: z.string().optional(),
+}).refine((data) => data.password === data.confirmPassword, {
+	message: "Passwords do not match",
+	path: ["confirmPassword"],
 });
 
 type OnboardingValues = z.infer<typeof onboardingSchema>;
 
 export default function OnboardingPage() {
 	const router = useRouter();
+	const { signup, login } = useApi();
+	
+	const [loading, setLoading] = useState(false);
+	const [error, setError] = useState<string | null>(null);
+	const [accountCreated, setAccountCreated] = useState(false);
 
 	const form = useForm<OnboardingValues>({
 		resolver: zodResolver(onboardingSchema),
@@ -65,14 +78,39 @@ export default function OnboardingPage() {
 		mode: "onTouched",
 	});
 
-	function submitAll(values: OnboardingValues) {
-		const payload = {
-			id: crypto.randomUUID(),
-			createdAt: new Date().toISOString(),
-			...values,
-		};
-		console.log("onboarding payload", payload);
-		router.push("/dashboard");
+	async function submitAll(values: OnboardingValues) {
+		setError(null);
+		setLoading(true);
+		
+		try {
+			if (!accountCreated) {
+				// First create the account
+				await signup(values.name, values.email, values.password);
+				// Then log them in
+				await login(values.email, values.password);
+				setAccountCreated(true);
+			}
+			
+			// Save profile data (you might want to send this to your backend)
+			const profilePayload = {
+				name: values.name,
+				age: values.age,
+				heightCm: values.heightCm,
+				weightKg: values.weightKg,
+				primaryGoal: values.primaryGoal,
+				experience: values.experience,
+				equipment: values.equipment,
+				preferredDaysPerWeek: values.preferredDaysPerWeek,
+				anythingElse: values.anythingElse,
+			};
+			
+			console.log("profile payload", profilePayload);
+			router.push("/dashboard");
+		} catch (e) {
+			setError(e instanceof Error ? e.message : "Something went wrong");
+		} finally {
+			setLoading(false);
+		}
 	}
 
 	return (
@@ -92,7 +130,76 @@ export default function OnboardingPage() {
 						onFinalStepCompleted={form.handleSubmit(submitAll)}
 						contentClassName="pb-4"
 						footerClassName=""
+						validateStep={(step) => {
+							// Validate each step's required fields
+							const values = form.getValues();
+							switch (step) {
+								case 1: // Account creation step
+									return !!(values.email && values.password && values.confirmPassword && 
+										values.password === values.confirmPassword && 
+										values.email.includes('@') && 
+										values.password.length >= 8);
+								case 2: // Basics step
+									return !!(values.name && values.age && values.age >= 13 && values.age <= 100);
+								case 3: // Body metrics step
+									return !!(values.heightCm && values.weightKg && 
+										values.heightCm >= 100 && values.heightCm <= 250 &&
+										values.weightKg >= 30 && values.weightKg <= 300);
+								case 4: // Goals and experience step
+									return !!(values.primaryGoal && values.experience && values.equipment);
+								case 5: // Final step
+									return !!(values.preferredDaysPerWeek && 
+										values.preferredDaysPerWeek >= 1 && values.preferredDaysPerWeek <= 7);
+								default:
+									return true;
+							}
+						}}
 					>
+						<Step>
+							<div className="grid gap-4">
+								<h2 className="text-lg font-medium">Create Account</h2>
+								<FormField
+									control={form.control}
+									name="email"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Email</FormLabel>
+											<FormControl>
+												<Input type="email" placeholder="you@example.com" {...field} />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="password"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Password</FormLabel>
+											<FormControl>
+												<PasswordInput placeholder="Create a password" {...field} />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+								<FormField
+									control={form.control}
+									name="confirmPassword"
+									render={({ field }) => (
+										<FormItem>
+											<FormLabel>Confirm Password</FormLabel>
+											<FormControl>
+												<PasswordInput placeholder="Confirm your password" {...field} />
+											</FormControl>
+											<FormMessage />
+										</FormItem>
+									)}
+								/>
+							</div>
+						</Step>
+
 						<Step>
 							<div className="grid gap-4">
 								<h2 className="text-lg font-medium">Basics</h2>
@@ -224,13 +331,22 @@ export default function OnboardingPage() {
 										name="equipment"
 										render={({ field }) => (
 											<FormItem>
-												<FormLabel>Equipment Avalibility</FormLabel>
-												<FormControl>
-													<Input
-														placeholder="Weights, gym, nothing, etc"
-														{...field}
-													/>
-												</FormControl>
+												<FormLabel>Equipment Availability</FormLabel>
+												<Select
+													onValueChange={field.onChange}
+													defaultValue={field.value}
+												>
+													<FormControl>
+														<SelectTrigger>
+															<SelectValue placeholder="Select equipment" />
+														</SelectTrigger>
+													</FormControl>
+													<SelectContent>
+														<SelectItem value="none">No equipment</SelectItem>
+														<SelectItem value="limited">Limited equipment</SelectItem>
+														<SelectItem value="full_gym">Full gym</SelectItem>
+													</SelectContent>
+												</Select>
 												<FormMessage />
 											</FormItem>
 										)}
@@ -271,15 +387,7 @@ export default function OnboardingPage() {
 									)}
 								/>
 
-								<div className="pt-2">
-									<Button
-										type="button"
-										onClick={form.handleSubmit(submitAll)}
-										className="w-full sm:w-auto"
-									>
-										Save and continue
-									</Button>
-								</div>
+								{error && <p className="text-sm text-red-600 mt-2">{error}</p>}
 							</div>
 						</Step>
 					</Stepper>
