@@ -5,6 +5,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import Link from "next/link";
 
 import {
 	Form,
@@ -15,6 +16,14 @@ import {
 	FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import {
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
+} from "@/components/ui/card";
 import {
 	Select,
 	SelectContent,
@@ -24,6 +33,7 @@ import {
 } from "@/components/ui/select";
 import { PasswordInput } from "@/components/ui/password-input";
 import Stepper, { Step } from "@/components/ui/stepper";
+import VerifyEmailCard from "@/components/ui/verify-email-card";
 import { useApi } from "@/lib/api";
 
 type FitnessGoal =
@@ -68,6 +78,8 @@ export default function OnboardingPage() {
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [accountCreated, setAccountCreated] = useState(false);
+	const [onboardingCompleted, setOnboardingCompleted] = useState(false);
+	const [userEmail, setUserEmail] = useState("");
 
 	const form = useForm<OnboardingValues>({
 		resolver: zodResolver(onboardingSchema),
@@ -86,8 +98,6 @@ export default function OnboardingPage() {
 			if (!accountCreated) {
 				// First create the account
 				await signup(values.name, values.email, values.password);
-				// Then log them in
-				await login(values.email, values.password);
 				setAccountCreated(true);
 			}
 			
@@ -105,12 +115,41 @@ export default function OnboardingPage() {
 			};
 			
 			console.log("profile payload", profilePayload);
-			router.push("/dashboard");
+			
+			// Set completion state and email for verification
+			setUserEmail(values.email);
+			setOnboardingCompleted(true);
 		} catch (e) {
 			setError(e instanceof Error ? e.message : "Something went wrong");
 		} finally {
 			setLoading(false);
 		}
+	}
+
+	if (onboardingCompleted) {
+		return (
+			<div className="mx-auto max-w-md px-4 py-12 flex flex-col gap-6">
+				<Card>
+					<CardHeader>
+						<CardTitle>Verify your email</CardTitle>
+						<CardDescription>We sent a verification link to your inbox.</CardDescription>
+					</CardHeader>
+					<CardContent>
+						<VerifyEmailCard email={userEmail} />
+						<div className="mt-6 pt-4 border-t">
+							<p className="text-sm text-muted-foreground mb-3">
+								Already verified your email?
+							</p>
+							<Link href="/login">
+								<Button className="w-full">
+									Continue to Login
+								</Button>
+							</Link>
+						</div>
+					</CardContent>
+				</Card>
+			</div>
+		);
 	}
 
 	return (
