@@ -38,7 +38,6 @@ export function AppNav() {
 						height={75}
 						className="rounded"
 					/>
-					<span>Fitness Adventure</span>
 				</Link>
 				<nav className="flex items-center gap-4 sm:gap-6">
 					{isAuthed ? (
@@ -88,19 +87,19 @@ export function AppNav() {
 							</div>
 						</>
 					) : (
-					<div className="ml-auto flex items-center gap-5">
-					<Link
-					  href="/login"
-					  className="text-sm font-medium text-muted-foreground transition-all hover:text-primary hover:underline hover:underline-offset-4 cursor-pointer"
-					>
-					  Login
-					</Link>
-					  <Link href="/signup">
-						<Button size="sm" className="h-8 px-4 cursor-pointer">
-						  Sign up
-						</Button>
-					  </Link>
-					</div>
+						<div className="ml-auto flex items-center gap-5">
+							<Link
+								href="/login"
+								className="text-sm font-medium text-muted-foreground transition-all hover:text-primary hover:underline hover:underline-offset-4 cursor-pointer"
+							>
+								Login
+							</Link>
+							<Link href="/signup">
+								<Button size="sm" className="h-8 px-4 cursor-pointer">
+									Sign up
+								</Button>
+							</Link>
+						</div>
 					)}
 				</nav>
 			</div>

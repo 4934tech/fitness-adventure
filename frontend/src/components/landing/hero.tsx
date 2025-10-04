@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import TextType from "@/components/TextType";
+import ShinyText from "@/components/ShinyText";
 
 export function LandingHero() {
 	return (
@@ -19,17 +21,22 @@ export function LandingHero() {
 					AI-customized fitness, gamified.
 				</motion.div>
 
-				<motion.h1
-					initial={{ opacity: 0, y: 10 }}
-					whileInView={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.1, duration: 0.6 }}
-					viewport={{ once: true }}
-					className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl fa-gradient-text"
-				>
-					Begin your fitness adventure
-				</motion.h1>
-
-
+				{/*<motion.h1*/}
+				{/*	initial={{ opacity: 0, y: 10 }}*/}
+				{/*	whileInView={{ opacity: 1, y: 0 }}*/}
+				{/*	transition={{ delay: 0.1, duration: 0.6 }}*/}
+				{/*	viewport={{ once: true }}*/}
+				{/*	className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl fa-gradient-text"*/}
+				{/*>*/}
+				{/*	Begin your fitness adventure*/}
+				{/*</motion.h1>*/}
+				<h1>
+					<TextType
+						className="mt-4 text-4xl font-semibold tracking-tight sm:text-5xl md:text-6xl fa-gradient-text"
+						text={["Begin your Fitness Adventure"]}
+						showCursor={false}
+					/>
+				</h1>
 				<motion.p
 					initial={{ opacity: 0, y: 10 }}
 					whileInView={{ opacity: 1, y: 0 }}
@@ -37,8 +44,8 @@ export function LandingHero() {
 					viewport={{ once: true }}
 					className="mx-auto mt-4 max-w-2xl text-balance text-muted-foreground"
 				>
-					Personalized plans adapt to you. Complete quests, earn XP and coins,
-					and stay consistent with streaks and analytics.
+					Personalized plans adapt to you. Track progress, stay consistent with
+					streaks and analytics, and more.
 				</motion.p>
 
 				<motion.div
@@ -49,36 +56,10 @@ export function LandingHero() {
 					className="mt-8 flex items-center justify-center gap-3"
 				>
 					<Button asChild>
-						<Link href="/onboarding">Get Started</Link>
+						<Link href="/onboarding">
+							<ShinyText text={"Get Started"} className={"text-black"} />
+						</Link>
 					</Button>
-					<Button asChild variant="outline">
-						<Link href="/dashboard">See Dashboard</Link>
-					</Button>
-				</motion.div>
-
-				<motion.div
-					initial={{ opacity: 0, y: 10 }}
-					whileInView={{ opacity: 1, y: 0 }}
-					transition={{ delay: 0.4, duration: 0.6 }}
-					viewport={{ once: true }}
-					className="mt-10 grid grid-cols-2 gap-4 text-left sm:grid-cols-4"
-				>
-					{[
-						{ label: "Members leveled up", value: "25k+" },
-						{ label: "Avg. weekly XP", value: "1.2k" },
-						{ label: "Daily quests", value: "500+" },
-						{ label: "Countries", value: "60+" },
-					].map((s) => (
-						<div
-							key={s.label}
-							className="fa-gradient-border rounded-lg p-[1px]"
-						>
-							<div className="fa-glass rounded-[inherit] p-4">
-								<div className="text-2xl font-semibold">{s.value}</div>
-								<div className="text-xs text-muted-foreground">{s.label}</div>
-							</div>
-						</div>
-					))}
 				</motion.div>
 			</div>
 		</section>
