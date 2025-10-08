@@ -45,7 +45,6 @@
 
 :root {
 	--radius: 0.625rem;
-	/* New color palette: text: #0f1011, background: #f7f8f9, primary: #07365a, secondary: #9fbdd4, accent: #77aad1 */
 	--background: oklch(0.975 0.003 240);
 	--foreground: oklch(0.065 0.003 240);
 	--card: oklch(0.975 0.003 240);
@@ -80,7 +79,6 @@
 }
 
 .dark {
-	/* Dark theme with new color palette - inverted for dark mode */
 	--background: oklch(0.065 0.003 240);
 	--foreground: oklch(0.975 0.003 240);
 	--card: oklch(0.1 0.01 240);
@@ -123,7 +121,6 @@
 	}
 }
 
-/* Futuristic landing enhancements */
 @keyframes fa-float-1 {
 	0%,
 	100% {

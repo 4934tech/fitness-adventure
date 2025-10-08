@@ -4,11 +4,11 @@ import { Suspense, useState, FormEvent } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
+	Card,
+	CardContent,
+	CardDescription,
+	CardHeader,
+	CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
@@ -70,44 +70,45 @@ function LoginForm() {
 					<CardDescription>Enter your credentials to log in.</CardDescription>
 				</CardHeader>
 				<CardContent>
-			<form onSubmit={onSubmit}>
-    <div className="flex flex-col gap-6">
-				<div>
-					<label className="text-sm">Email</label>
-					<Input
-						type="email"
-						value={email}
-						onChange={(e) => setEmail(e.target.value)}
-						required
-						placeholder="you@example.com"
-					/>
-				</div>
+					<form onSubmit={onSubmit}>
+						<div className="flex flex-col gap-6">
+							<div>
+								<label className="text-sm">Email</label>
+								<Input
+									type="email"
+									value={email}
+									onChange={(e) => setEmail(e.target.value)}
+									required
+									placeholder="you@example.com"
+								/>
+							</div>
 
-				<div>
-					<label className="text-sm">Password</label>
-					<PasswordInput
-						value={password}
-						onChange={(e) => setPassword(e.target.value)}
-						required
-						placeholder="Enter your password"
-					/>
-				</div>
-      </div>
-				<Button type="submit" disabled={loading} className="w-full mt-4">
-					{loading ? "Logging in…" : "Login"}
-				</Button>
-			</form>
-      {!!error && <p className="text-sm text-red-600 mt-2 text-center">{error}</p>}
+							<div>
+								<label className="text-sm">Password</label>
+								<PasswordInput
+									value={password}
+									onChange={(e) => setPassword(e.target.value)}
+									required
+									placeholder="Enter your password"
+								/>
+							</div>
+						</div>
+						<Button type="submit" disabled={loading} className="w-full mt-4">
+							{loading ? "Logging in…" : "Login"}
+						</Button>
+					</form>
+					{!!error && (
+						<p className="text-sm text-red-600 mt-2 text-center">{error}</p>
+					)}
 
-			<p className="mt-6 text-center text-sm text-muted-foreground">
-				Make a new account?{" "}
-				<Link href="/signup" className="text-primary hover:underline">
-					Sign up
-				</Link>
-			</p>
-
-      </CardContent>
-      </Card>
+					<p className="mt-6 text-center text-sm text-muted-foreground">
+						Make a new account?{" "}
+						<Link href="/signup" className="text-primary hover:underline">
+							Sign up
+						</Link>
+					</p>
+				</CardContent>
+			</Card>
 		</div>
 	);
 }

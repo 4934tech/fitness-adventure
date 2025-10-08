@@ -1,13 +1,18 @@
 from datetime import timedelta
-from typing import Optional, TypedDict
-from fastapi import HTTPException, Request
+from typing import Optional, Mapping, Any, Dict
+from fastapi import HTTPException, Request, Body
 from passlib.hash import bcrypt
 import uuid, secrets, hmac, hashlib
 from pydantic import EmailStr
 from .db import users_col, utcnow
 from .config import get_settings
+from .models import AuthedUser, LoginRequest
 
 settings = get_settings()
+
+PREONBOARDING_ALLOWED_PATHS = { # Might need something later?
+    "/protected/onboarding",
+}
 
 def generate_token() -> str:
     return str(uuid.uuid4())
@@ -20,6 +25,7 @@ def is_token_expired(expiry_time: Optional[object]) -> bool:
         return True
     return utcnow() > expiry_time
 
+
 def hash_password(raw: str) -> str:
     return bcrypt.hash(raw)
 
@@ -28,6 +34,7 @@ def verify_password(raw: str, hashed: str) -> bool:
 
 def normalize_email(email: EmailStr) -> str:
     return str(email).strip().lower()
+
 
 def generate_code(length: int = 6) -> str:
     max_value = 10 ** length
@@ -42,19 +49,19 @@ def codes_equal(stored_hash: str, candidate: str) -> bool:
     cand = hmac.new(pepper, candidate.encode(), hashlib.sha256).hexdigest()
     return hmac.compare_digest(stored_hash, cand)
 
-class AuthedUser(TypedDict):
-    _id: object
-    name: str
-    email: str
-    token_expiry: object
-
-def get_user_by_email(email: EmailStr):
+def get_user_by_email(email: EmailStr) -> Optional[AuthedUser]:
     return users_col().find_one({"email": normalize_email(email)})
 
 def get_user_by_token(token: str) -> Optional[AuthedUser]:
     return users_col().find_one(
         {"token": token},
-        {"name": 1, "email": 1, "token_expiry": 1, "verified": 1}
+        {
+            "name": 1,
+            "email": 1,
+            "token_expiry": 1,
+            "verified": 1,
+            "onboarding": 1,
+        }
     )
 
 def rotate_token_for_user(user_id):
@@ -62,24 +69,59 @@ def rotate_token_for_user(user_id):
     token_expiry = get_expiry_time()
     users_col().update_one(
         {"_id": user_id},
-        {"$set": {"token": token, "token_expiry": token_expiry, "updated_at": utcnow()}}
+        {"$set": {
+            "token": token,
+            "token_expiry": token_expiry,
+            "updated_at": utcnow(),
+        }}
     )
     return users_col().find_one({"_id": user_id}, {"password_hash": 0})
 
-def require_auth(request: Request) -> AuthedUser:
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.lower().startswith("bearer "):
-        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+REQUIRED_ONBOARDING_FIELDS = ("height_in", "weight_lb", "experience_1to5")
 
+def is_fully_onboarded_user(user: Mapping[str, Any]) -> bool:
+    ob = user.get("onboarding") or {}
+    if not isinstance(ob, Mapping):
+        return False
+    for field in REQUIRED_ONBOARDING_FIELDS:
+        if ob.get(field) is None:
+            return False
+    return True
+
+def _extract_bearer_token(request: Request) -> str:
+    auth_header = request.headers.get("Authorization") or ""
+    if not auth_header.lower().startswith("bearer "):
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
     token = auth_header.split(" ", 1)[1].strip()
-    doc = get_user_by_token(token)
-    if not doc:
+    if not token:
+        raise HTTPException(status_code=401, detail="Missing or invalid Authorization header")
+    return token
+
+def require_auth(request: Request) -> AuthedUser:
+    token = _extract_bearer_token(request)
+
+    user: Optional[AuthedUser] = get_user_by_token(token)
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid token")
 
-    if is_token_expired(doc.get("token_expiry")):
+    if is_token_expired(user.get("token_expiry")):
         raise HTTPException(status_code=401, detail="Token expired")
 
-    if settings.REQUIRE_VERIFIED_FOR_LOGIN and not doc.get("verified", False):
+    if settings.REQUIRE_VERIFIED_FOR_LOGIN and not bool(user.get("verified", False)):
         raise HTTPException(status_code=403, detail="Email not verified")
 
-    return doc
+    path = request.url.path
+    if not is_fully_onboarded_user(user) and path not in PREONBOARDING_ALLOWED_PATHS:
+        raise HTTPException(status_code=403, detail="Onboarding required")
+
+    return user
+
+def authenticate_credentials(payload: LoginRequest = Body(...)) -> AuthedUser:
+    user = get_user_by_email(payload.email)
+    if not user or not verify_password(payload.password, user.get("password_hash", "")):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if settings.REQUIRE_VERIFIED_FOR_LOGIN and not bool(user.get("verified", False)):
+        raise HTTPException(status_code=403, detail="Email not verified")
+
+    return user

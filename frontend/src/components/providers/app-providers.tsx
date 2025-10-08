@@ -3,7 +3,7 @@
 import { ThemeProvider } from "next-themes";
 import { Toaster } from "@/components/ui/sonner";
 import { ReactNode } from "react";
-import { AuthProvider } from "@/lib/auth";
+import { AuthProvider } from "@/components/providers/auth";
 
 type AppProvidersProps = {
 	children: ReactNode;

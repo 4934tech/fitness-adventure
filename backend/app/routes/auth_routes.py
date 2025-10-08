@@ -1,11 +1,12 @@
 from datetime import timedelta
-from fastapi import APIRouter, HTTPException, BackgroundTasks, status
+from fastapi import APIRouter, HTTPException, BackgroundTasks, status, Depends
 from pymongo.errors import DuplicateKeyError
 from ..config import get_settings
 from ..email.email_manager import send_email_sync, email_verification_html
 from ..models import SignupRequest, LoginRequest, AuthResponse, ResendVerificationRequest, VerifyEmailRequest
 from ..db import users_col, utcnow, email_verifications_col
-from ..auth import hash_password, verify_password, rotate_token_for_user, get_user_by_email, normalize_email, generate_code, hash_code, codes_equal
+from ..auth import hash_password, verify_password, rotate_token_for_user, get_user_by_email, normalize_email, \
+    generate_code, hash_code, codes_equal, authenticate_credentials
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -105,10 +106,35 @@ def signup(payload: SignupRequest, background_tasks: BackgroundTasks):
             "email": email,
             "password_hash": password_hash,
             "verified": False,
+
+            "auth": {
+                "provider": "password",
+                "last_login_at": None,
+                "failed_login_count": 0,
+                "mfa": {"enabled": False}
+            },
+
+            "onboarding": {
+                "height_in": None,
+                "weight_lb": None,
+                "experience_1to5": None
+            },
+
+            "progress": {
+                "level": 1,
+                "xp_total": 0,
+                "xp_to_next_level": 1000,
+                "quests_completed_count": 0,
+            },
+
+            "wallet": {"coins_balance": 0},
+            "streak": {"current": 0, "best": 0, "last_checkin_date": None},
+            "quests": {"active": [], "completed": []},
+
             "token": None,
             "token_expiry": None,
             "created_at": now,
-            "updated_at": now,
+            "updated_at": now
         })
     except DuplicateKeyError:
         raise HTTPException(
@@ -139,16 +165,6 @@ def signup(payload: SignupRequest, background_tasks: BackgroundTasks):
 
 
 @router.post("/login", response_model=AuthResponse)
-def login(payload: LoginRequest):
-    doc = get_user_by_email(payload.email)
-    if not doc:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    if not verify_password(payload.password, doc["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
-
-    if not doc.get("verified", False):
-        raise HTTPException(status_code=403, detail="Email not verified")
-
-    updated = rotate_token_for_user(doc["_id"])
+def login(user = Depends(authenticate_credentials)):
+    updated = rotate_token_for_user(user["_id"])
     return doc_to_auth_response(updated)

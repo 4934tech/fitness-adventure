@@ -4,12 +4,11 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { useAuth } from "@/lib/auth";
+import { useAuth } from "@/components/providers/auth";
 import Image from "next/image";
 
 const links = [
 	{ href: "/dashboard", label: "Dashboard" },
-	{ href: "/workouts", label: "Workouts" },
 	{ href: "/quests", label: "Quests" },
 	{ href: "/progress", label: "Progress" },
 ];

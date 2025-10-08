@@ -1,3 +1,5 @@
+from typing import TypedDict, Optional
+
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
@@ -21,6 +23,18 @@ class AuthResponse(BaseModel):
     token: str
     token_expiry: datetime
 
+class Onboarding(TypedDict):
+    height_in: float
+    weight_lb: float
+    experience_1to5: int
+
+class AuthedUser(TypedDict):
+    _id: object
+    name: str
+    email: str
+    token_expiry: object
+    verified: bool
+    onboarding: Onboarding
 
 class VerifyEmailRequest(BaseModel):
     email: EmailStr

@@ -22,10 +22,7 @@ export function LandingCta() {
 				</p>
 				<div className="mt-6 flex justify-center gap-3">
 					<Button asChild>
-						<Link href="/onboarding">Get Started</Link>
-					</Button>
-					<Button asChild variant="outline">
-						<Link href="/dashboard">Preview Dashboard</Link>
+						<Link href="/signup">Get Started</Link>
 					</Button>
 				</div>
 			</div>

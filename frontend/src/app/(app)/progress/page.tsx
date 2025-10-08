@@ -2,6 +2,7 @@
 
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ResponsiveContainer, LineChart, Line, XAxis, YAxis } from "recharts";
+import { useRequireAuth } from "@/components/providers/auth";
 
 const mockWeightData = [
 	{ week: "W1", kg: 80 },
@@ -12,6 +13,8 @@ const mockWeightData = [
 ];
 
 export default function ProgressPage() {
+	const { isAuthed } = useRequireAuth();
+	if (!isAuthed) return null;
 	return (
 		<div className="grid gap-4">
 			<Card>
