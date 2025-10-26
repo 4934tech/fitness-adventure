@@ -19,7 +19,7 @@ export default function ProgressPage() {
 		<div className="grid gap-4">
 			<Card>
 				<CardHeader>
-					<CardTitle>Weight Progress</CardTitle>
+					<CardTitle>Weight Progress (Incomplete)</CardTitle>
 				</CardHeader>
 				<CardContent>
 					<div className="h-64 w-full">

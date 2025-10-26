@@ -89,7 +89,7 @@ def resend_verification(payload: ResendVerificationRequest, background_tasks: Ba
         to_email=email,
         subject=f"Your code is {code}",
         html=email_verification_html(user["name"], code),
-        nohtml=f"Your verification code is: {code}"
+        nohtml="Your verification code is: " + code
     )
     return {"status": "ok"}
 
@@ -117,7 +117,11 @@ def signup(payload: SignupRequest, background_tasks: BackgroundTasks):
             "onboarding": {
                 "height_in": None,
                 "weight_lb": None,
-                "experience_1to5": None
+                "primary_goal": None,
+                "experience": None,
+                "equipment": None,
+                "preferred_days_per_week": None,
+                "age": None
             },
 
             "progress": {

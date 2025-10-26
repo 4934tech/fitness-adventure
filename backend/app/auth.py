@@ -77,16 +77,22 @@ def rotate_token_for_user(user_id):
     )
     return users_col().find_one({"_id": user_id}, {"password_hash": 0})
 
-REQUIRED_ONBOARDING_FIELDS = ("height_in", "weight_lb", "experience_1to5")
-
+REQUIRED_ONBOARDING_FIELDS = (
+    "height_in",
+    "weight_lb",
+    "primary_goal",
+    "experience",
+    "equipment",
+    "preferred_days_per_week",
+    "age",
+)
+# Check if all required onboarding fields are present and non-null
 def is_fully_onboarded_user(user: Mapping[str, Any]) -> bool:
-    ob = user.get("onboarding") or {}
+    ob = user.get("onboarding")
     if not isinstance(ob, Mapping):
         return False
-    for field in REQUIRED_ONBOARDING_FIELDS:
-        if ob.get(field) is None:
-            return False
-    return True
+
+    return all(field in ob and ob[field] is not None for field in REQUIRED_ONBOARDING_FIELDS)
 
 def _extract_bearer_token(request: Request) -> str:
     auth_header = request.headers.get("Authorization") or ""

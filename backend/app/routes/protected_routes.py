@@ -1,9 +1,10 @@
-from typing import Annotated, Optional, List
+from typing import Annotated, Optional, List, Literal
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from pydantic import BaseModel, EmailStr, Field, conint, NonNegativeInt, PositiveInt, confloat
 from ..auth import require_auth
 from ..db import users_col, utcnow
 from ..ai.ai import fill_missing_active_quests
+from ..models import Onboarding
 
 Authed = Annotated[dict, Depends(require_auth)]
 router = APIRouter(prefix="/protected", tags=["protected"])
@@ -22,11 +23,6 @@ class ProfileOut(BaseModel):
     id: str
     name: str
     email: EmailStr
-
-class OnboardingIn(BaseModel):
-    height_in: confloat(ge=48, le=90)
-    weight_lb: confloat(ge=70, le=700)
-    experience_1to5: conint(ge=1, le=5)
 
 class QuestIdIn(BaseModel):
     quest_id: str
@@ -84,16 +80,22 @@ def profile(user: Authed):
     return {"id": str(user["_id"]), "name": user["name"], "email": user["email"]}
 
 @router.put("/onboarding", response_model=OnboardingResult)
-def update_onboarding(user: Authed, payload: OnboardingIn):
+def update_onboarding(user: Authed, payload: Onboarding):
     now = utcnow()
     users_col().update_one(
         {"_id": user["_id"]},
-        {"$set": {
-            "onboarding.height_in": float(payload.height_in),
-            "onboarding.weight_lb": float(payload.weight_lb),
-            "onboarding.experience_1to5": int(payload.experience_1to5),
-            "updated_at": now,
-        }}
+        {
+            "$set": {
+                "onboarding.height_in": float(payload.height_in),
+                "onboarding.weight_lb": float(payload.weight_lb),
+                "onboarding.primary_goal": payload.primary_goal,
+                "onboarding.experience": payload.experience,
+                "onboarding.equipment": payload.equipment,
+                "onboarding.preferred_days_per_week": int(payload.preferred_days_per_week),
+                "onboarding.age": int(payload.age) if payload.age is not None else None,
+                "updated_at": now,
+            }
+        },
     )
     return {"ok": True, "requires_onboarding": False}
 

@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     VERIFICATION_MAX_ATTEMPTS: int = 10
     VERIFICATION_PEPPER: str = "change-me"
     REQUIRE_VERIFIED_FOR_LOGIN: bool = True
+    API_TOKEN: str = "change-me"
 
     model_config = SettingsConfigDict(env_file=".env", case_sensitive=True)
 

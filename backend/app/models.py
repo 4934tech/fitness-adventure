@@ -1,5 +1,4 @@
-from typing import TypedDict, Optional
-
+from typing import TypedDict, Literal
 from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime
 
@@ -23,10 +22,17 @@ class AuthResponse(BaseModel):
     token: str
     token_expiry: datetime
 
-class Onboarding(TypedDict):
-    height_in: float
-    weight_lb: float
-    experience_1to5: int
+ExperienceLevel = Literal["beginner", "intermediate", "advanced"]
+EquipmentAccess = Literal["none", "limited", "full_gym"]
+
+class Onboarding(BaseModel):
+    height_in: float = Field(gt=0, lt=120)
+    weight_lb: float = Field(gt=0, lt=2000)
+    primary_goal: str = Field(min_length=1, max_length=120)
+    experience: ExperienceLevel
+    equipment: EquipmentAccess
+    preferred_days_per_week: int = Field(ge=1, le=7)
+    age: int = Field(ge=13, le=100)
 
 class AuthedUser(TypedDict):
     _id: object
@@ -39,7 +45,6 @@ class AuthedUser(TypedDict):
 class VerifyEmailRequest(BaseModel):
     email: EmailStr
     code: str = Field(min_length=6, max_length=6)
-
 
 class ResendVerificationRequest(BaseModel):
     email: EmailStr

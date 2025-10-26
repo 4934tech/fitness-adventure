@@ -1,64 +1,112 @@
 from __future__ import annotations
-from typing import Dict, Any
+
+import json
+from typing import Dict, Any, List, Optional
 from uuid import uuid4
-from random import randint
+from openai import OpenAI
+from pydantic import BaseModel, Field, ValidationError
+
+from ..config import get_settings
 from ..db import users_col, utcnow
 
-def _choose_title_and_target(user: Dict[str, Any]) -> tuple[str, int]: # TODO: REPLACE WITH AI, instead of this strange system
-    onboarding = (user.get("onboarding") or {})
-    exp = int(onboarding.get("experience_1to5") or 1)
-    if exp <= 2:
-        candidates = [
-            ("Do a 10 minute mobility session", 1),
-            ("Walk 3000 steps", 3000),
-            ("Do 2 sets of bodyweight squats", 2),
-            ("Log your first workout", 1)
-        ]
-    elif exp == 3:
-        candidates = [
-            ("Do a 20 minute cardio session", 1),
-            ("Walk 6000 steps", 6000),
-            ("Do 3 sets of pushups", 3),
-            ("Log a strength workout", 1)
-        ]
-    else:
-        candidates = [
-            ("Run 3 miles total", 3),
-            ("Walk 9000 steps", 9000),
-            ("Do 5 working sets today", 5),
-            ("Log a HIIT workout", 1)
-        ]
-    title, target = candidates[randint(0, len(candidates) - 1)]
-    return title, target
+settings = get_settings()
+client = OpenAI(api_key=settings.API_TOKEN)
 
-def _compute_rewards(target: int) -> Dict[str, int]:
-    base_xp = 100
-    base_coins = 10
-    xp = base_xp + min(400, target // 2)
-    coins = base_coins + min(40, target // 2500)
-    return {"xp": int(xp), "coins": int(coins)}
+SYSTEM_INSTRUCTIONS = """
+You are a game designer for a fitness RPG.
+Generate simple daily quests for users.
+Return ONLY valid JSON with no extra commentary.
+Return a JSON array with exactly ONE object, using this schema:
+
+[
+  {
+    "title": "string, concise user-facing quest name",
+    "type": "counter",
+    "target": number (positive integer),
+    "rewards": { "xp": number (int), "coins": number (int) }
+  }
+]
+Consider equipment and experience. If equipment is "none", use bodyweight or walking tasks.
+Consider preferred_days_per_week for realistic volume.
+Align with primary_goal.
+Use "type": "counter".
+Target must be a positive integer.
+rewards.xp and rewards.coins must be non-negative integers.
+Return ONLY the JSON array.
+"""
+
+def _build_user_prompt(onboarding: Dict[str, Any]) -> str:
+    return json.dumps(onboarding or {}, ensure_ascii=False, separators=(",", ":"))
+
+class QuestRewards(BaseModel):
+    xp: int = Field(ge=0)
+    coins: int = Field(ge=0)
+
+class RawQuest(BaseModel):
+    title: str
+    type: str
+    target: int
+    rewards: QuestRewards
+
+def _ask_model_for_quest(client: OpenAI, onboarding: Dict[str, Any], model: str = "gpt-4o-mini") -> list[dict[str, Any]]:
+    user_prompt = _build_user_prompt(onboarding)
+
+    completion = client.responses.create(
+        model=model,
+        instructions=SYSTEM_INSTRUCTIONS,
+        input="\nUser data:\n" + user_prompt,
+    )
+
+    msg = completion.output_text
+    text = msg if isinstance(msg, str) else str(msg or "")
+
+    try:
+        data = json.loads(text)
+    except Exception as e:
+        raise ValueError(f"Invalid JSON from model: {e}")
+
+    if not isinstance(data, list):
+        raise ValueError("Top-level response must be a JSON array")
+
+    return data
+
+
+
+def _validate_and_normalize(quest_list: List[Dict[str, Any]]) -> RawQuest:
+    if not quest_list:
+        raise ValueError("Empty quest list.")
+    candidate = quest_list[0]
+    try:
+        return RawQuest.model_validate(candidate)
+    except ValidationError as ve:
+        raise ValueError(f"Invalid quest shape: {ve}")
 
 def generate_personal_quest(user: Dict[str, Any]) -> Dict[str, Any]:
-    now = utcnow()
-    quest_id = str(uuid4())
-    title, target = _choose_title_and_target(user)
-    rewards = _compute_rewards(target)
-    return {
-        "quest_id": quest_id,
-        "title": title,
-        "type": "counter",
-        "target": int(target),
-        "progress": 0,
-        "rewards": {"xp": int(rewards["xp"]), "coins": int(rewards["coins"])},
-        "created_at": now,
-        "started_at": now,
-        "meta": {
-            "source": "ai_v1",
-            "seed_inputs": {
-                "experience_1to5": (user.get("onboarding") or {}).get("experience_1to5")
+    attempts = 3
+    last_err: Optional[Exception] = None
+    onboarding = user.get("onboarding") or {}
+
+    for _ in range(attempts):
+        try:
+            quest = _ask_model_for_quest(client, onboarding)
+            valid = _validate_and_normalize(quest)
+            now = utcnow()
+            return {
+                "quest_id": str(uuid4()),
+                "title": valid.title,
+                "type": valid.type,
+                "target": int(valid.target),
+                "progress": 0,
+                "rewards": {"xp": int(valid.rewards.xp), "coins": int(valid.rewards.coins)},
+                "created_at": now,
+                "started_at": now,
             }
-        }
-    }
+        except Exception as e:
+            last_err = e
+            continue
+
+    raise RuntimeError(f"Failed to generate a valid quest after {attempts} attempts: {last_err}")
+
 
 def fill_missing_active_quests(user_id, count_to_add=1):
     col = users_col()
@@ -71,7 +119,7 @@ def fill_missing_active_quests(user_id, count_to_add=1):
         return
 
     now = utcnow()
-    new_quests = []
+    new_quests: List[Dict[str, Any]] = []
     for _ in range(n):
         q = generate_personal_quest(doc)
         if not q.get("started_at"):

@@ -16,9 +16,13 @@ export type AuthResponse = {
 export type Profile = { id: string; name: string; email: string };
 
 export type OnboardingIn = {
-	height_in: number;
-	weight_lb: number;
-	experience_1to5: 1 | 2 | 3 | 4 | 5;
+  height_in: number;
+  weight_lb: number;
+  primary_goal: string;
+  experience: "beginner" | "intermediate" | "advanced";
+  equipment: "none" | "limited" | "full_gym";
+  preferred_days_per_week: number;
+  age?: number | null;
 };
 
 export type OnboardingResult = {
