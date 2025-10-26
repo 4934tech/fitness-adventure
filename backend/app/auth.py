@@ -26,14 +26,35 @@ def is_token_expired(expiry_time: Optional[object]) -> bool:
     return utcnow() > expiry_time
 
 
+def _truncate_password_bytes(raw: str) -> str:
+    """Truncate password to 72 bytes for bcrypt, handling UTF-8 multi-byte characters properly."""
+    encoded = raw.encode('utf-8')
+    if len(encoded) <= 72:
+        return raw
+
+    # Truncate to 72 bytes
+    truncated_bytes = encoded[:72]
+
+    # Remove trailing bytes until we have valid UTF-8
+    # This handles the case where we sliced in the middle of a multi-byte character
+    while truncated_bytes:
+        try:
+            return truncated_bytes.decode('utf-8')
+        except UnicodeDecodeError:
+            # Remove the last byte and try again
+            truncated_bytes = truncated_bytes[:-1]
+
+    # Fallback (should never happen with valid input)
+    return raw[0] if raw else ""
+
 def hash_password(raw: str) -> str:
     # Bcrypt has a 72-byte limit, truncate if necessary
-    truncated = raw.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    truncated = _truncate_password_bytes(raw)
     return bcrypt.hash(truncated)
 
 def verify_password(raw: str, hashed: str) -> bool:
     # Bcrypt has a 72-byte limit, truncate if necessary
-    truncated = raw.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    truncated = _truncate_password_bytes(raw)
     return bcrypt.verify(truncated, hashed)
 
 def normalize_email(email: EmailStr) -> str:
