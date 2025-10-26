@@ -27,10 +27,14 @@ def is_token_expired(expiry_time: Optional[object]) -> bool:
 
 
 def hash_password(raw: str) -> str:
-    return bcrypt.hash(raw)
+    # Bcrypt has a 72-byte limit, truncate if necessary
+    truncated = raw.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return bcrypt.hash(truncated)
 
 def verify_password(raw: str, hashed: str) -> bool:
-    return bcrypt.verify(raw, hashed)
+    # Bcrypt has a 72-byte limit, truncate if necessary
+    truncated = raw.encode('utf-8')[:72].decode('utf-8', errors='ignore')
+    return bcrypt.verify(truncated, hashed)
 
 def normalize_email(email: EmailStr) -> str:
     return str(email).strip().lower()
