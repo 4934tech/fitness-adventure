@@ -1,3 +1,3 @@
 # Fitness Adventure
-*By Olav & Sahil (4934)*
+*By Sahil (4934)*
 
